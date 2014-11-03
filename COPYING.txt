@@ -1,0 +1,8 @@
+版权说明
+=========================
+    本软件为免费、开源软件。
+    版权所有 (C) 2014 孙明保
+    Dual licensed under the MIT and/or GPL licenses.
+=========================
+    作者: 孙明保
+    邮箱: sunmingbao@126.com

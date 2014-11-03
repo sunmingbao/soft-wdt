@@ -142,17 +142,13 @@ static void write_log(const char *fmt, ...)
     kernel_write_file(filp_log_file, actual_contents, prefix_len+user_data_len);
 }
 
-
-static void dog_timeout_proc(unsigned long data)
+static void del_dog(t_dog *pt_dog)
 {
-    t_dog *pt_dog = (void *)data;
+    spin_lock(&all_dog_lock);
+    list_del(&(pt_dog->link_all));
+    dog_cnt--;
+    spin_unlock(&all_dog_lock);
 
-    LOG_AND_WRITE_CONSOLE("dog[id=%d; name=%s] expired."
-        , pt_dog->id
-        , pt_dog->name);
-    
-    if (!pt_dog->no_reboot)
-        emergency_restart();
 }
 
 static int feed_dog(t_dog *pt_dog)
@@ -161,6 +157,48 @@ static int feed_dog(t_dog *pt_dog)
 	mod_timer(&(pt_dog->ticktock), jiffies+(pt_dog->timeout*HZ));
 	return 0;
 }
+
+static void dog_timeout_proc(unsigned long data)
+{
+    t_dog *pt_dog = (void *)data;
+    int no_reboot=pt_dog->no_reboot;
+    
+    LOG_AND_WRITE_CONSOLE("dog[id=%d; name=%s] expired."
+        , pt_dog->id
+        , pt_dog->name);
+
+    if (pt_dog->is_orphan)
+    {
+        LOG_AND_WRITE_CONSOLE("dog[id=%d; name=%s] is orphan, so we free it."
+            , pt_dog->id
+            , pt_dog->name);
+        
+        del_dog(pt_dog);
+        kfree(pt_dog);
+
+    }
+
+    if (!no_reboot)
+        emergency_restart();
+}
+
+static void add_dog(t_dog *pt_dog)
+{
+    pt_dog->timeout = timeout;
+    pt_dog->ticktock = 
+        (struct timer_list)TIMER_INITIALIZER(dog_timeout_proc, 0, (unsigned long)pt_dog);
+    pt_dog->stop_on_close = stop_on_close;
+    pt_dog->is_orphan = 0;
+    pt_dog->no_reboot = 0;
+    pt_dog->name[0] = 0;
+    
+    spin_lock(&all_dog_lock);
+    pt_dog->id = dog_cnt;
+    list_add(&(pt_dog->link_all), &all_dogs);
+    dog_cnt++;
+    spin_unlock(&all_dog_lock);
+}
+
 
 static int set_dog_timeout(t_dog *pt_dog, int t)
 {
@@ -346,31 +384,6 @@ static long soft_wdt_ioctl(struct file *file, unsigned int cmd,
 	}
 }
 
-static void add_dog(t_dog *pt_dog)
-{
-    pt_dog->timeout = timeout;
-    pt_dog->ticktock = 
-        (struct timer_list)TIMER_INITIALIZER(dog_timeout_proc, 0, (unsigned long)pt_dog);
-    pt_dog->stop_on_close = stop_on_close;
-    pt_dog->is_orphan = 0;
-    pt_dog->no_reboot = 0;
-    pt_dog->name[0] = 0;
-    
-    spin_lock(&all_dog_lock);
-    pt_dog->id = dog_cnt;
-    list_add(&(pt_dog->link_all), &all_dogs);
-    dog_cnt++;
-    spin_unlock(&all_dog_lock);
-}
-
-static void del_dog(t_dog *pt_dog)
-{
-    spin_lock(&all_dog_lock);
-    list_del(&(pt_dog->link_all));
-    dog_cnt--;
-    spin_unlock(&all_dog_lock);
-
-}
 
 static int soft_wdt_open(struct inode *inode, struct file *file)
 {

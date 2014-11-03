@@ -1,0 +1,23 @@
+模块编译
+
+(方法一)在Linux内核编译体系中编译
+
+1. 拷贝soft_wdt.c到drivers/watchdog/目录下。
+
+2. 将下面这行代码，追加到内核源码的drivers/watchdog/Makefile中(在Architecture Independant部分)
+obj-$(CONFIG_SOFT_WDT) += soft_wdt.o
+
+3. 将下面的内容追加到内核源码的drivers/watchdog/Kconfig中(在Architecture Independant部分)
+
+config SOFT_WDT
+	tristate "soft_wdt-Software watchdog timer"
+	help
+	  Software implemented watchdog timer, supporting mutiple dogs, 
+	  and supply some control mechanism.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called softdog.
+
+4. 执行make menuconfig进入watchdog驱动程序的选择界面
+    将soft_wdt-Software watchdog timer的编译方式设置为M，保存配置并退出设置。
+    执行make modules，然后在drivers/watchdog/目录下，就会生成模块文件soft_wdt.ko
