@@ -19,8 +19,6 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/reboot.h>
-#include <linux/init.h>
-#include <linux/notifier.h>
 #include <linux/jiffies.h>
 #include <linux/uaccess.h>
 #include <linux/spinlock.h>
@@ -45,6 +43,13 @@ MODULE_LICENSE("Dual MIT/GPL");
         WRITE_CONSOLE("DBG:%s(%d)-%s:\n"fmt"\n", __FILE__,__LINE__,__FUNCTION__,##args); \
     } while (0)
 
+#define LOG_AND_WRITE_CONSOLE(fmt, args...) \
+    do \
+    { \
+        WRITE_CONSOLE(fmt"\n", ##args); \
+        write_log(fmt, ##args); \
+    } while (0)
+
 #define DEFAULT_TIMEOUT    (5)    /* Default is 5 seconds */
 static int timeout = DEFAULT_TIMEOUT;	/* in seconds */
 static int stop_on_close;
@@ -55,13 +60,18 @@ module_param(log_file, charp, S_IRUGO);
 
 struct file *filp_log_file;
 
+#define MAX_USER_DATA_LEN    (255)
+#define USER_DATA_BUF_LEN    (MAX_USER_DATA_LEN+1)
 typedef struct
 {
     struct list_head link_all;
-    int idx;
-    int stop_on_close;
-    int is_orphan;
+    int id;
+    char name[USER_DATA_BUF_LEN];
     int timeout;
+
+    int stop_on_close;
+    int no_reboot;
+    int is_orphan;
     struct timer_list ticktock;
 } t_dog;
 
@@ -79,7 +89,7 @@ static inline void file_pos_write(struct file *file, loff_t pos)
 	file->f_pos = pos;
 }
 
-int get_time_str(char *output)
+static int get_time_str(char *output)
 {
     struct timex  txc;
     struct rtc_time tm;
@@ -95,7 +105,7 @@ int get_time_str(char *output)
         ,tm.tm_sec);
 }
 
-void kernel_write_file(struct file *filp, const char *buf, int len)
+static void kernel_write_file(struct file *filp, const char *buf, int len)
 {
     loff_t pos;
     mm_segment_t fs;
@@ -107,7 +117,7 @@ void kernel_write_file(struct file *filp, const char *buf, int len)
     set_fs(fs); 
 }
 
-void write_log(const char *fmt, ...)
+static void write_log(const char *fmt, ...)
 {
     char actual_contents[512];
     int prefix_len;
@@ -116,10 +126,10 @@ void write_log(const char *fmt, ...)
 
     if (!filp_log_file) return;
 
-    get_time_str(actual_contents+1);
-    actual_contents[0]='[';
-    actual_contents[20]=']';
-    actual_contents[21]=':';
+    get_time_str(actual_contents+2);
+    actual_contents[0]='\n';
+    actual_contents[1]='[';
+    actual_contents[21]=']';
     prefix_len=22;
 
 	va_start(args, fmt);
@@ -136,46 +146,156 @@ void write_log(const char *fmt, ...)
 static void dog_timeout_proc(unsigned long data)
 {
     t_dog *pt_dog = (void *)data;
-#if 0
-    emergency_restart();
-#else
-   DBG_PRINT("dog %d expired. restart system", pt_dog->idx);
-#endif
+
+    LOG_AND_WRITE_CONSOLE("dog[id=%d; name=%s] expired."
+        , pt_dog->id
+        , pt_dog->name);
+    
+    if (!pt_dog->no_reboot)
+        emergency_restart();
 }
 
 static int feed_dog(t_dog *pt_dog)
 {
-	DBG_PRINT("feed dog %d", pt_dog->idx);
+	WRITE_CONSOLE("feed dog %d", pt_dog->id);
 	mod_timer(&(pt_dog->ticktock), jiffies+(pt_dog->timeout*HZ));
 	return 0;
 }
 
-static int set_dog_timeout(int t)
+static int set_dog_timeout(t_dog *pt_dog, int t)
 {
 	if ((t < 0x0001) || (t > 0xFFFF))
 		return -EINVAL;
 
-	timeout = t;
+	pt_dog->timeout = t;
+    LOG_AND_WRITE_CONSOLE("dog[id=%d; name=%s] timeout set to %d seconds."
+        , pt_dog->id
+        , pt_dog->name
+        , pt_dog->timeout);
+
 	return 0;
 }
 
 static int stop_dog(t_dog *pt_dog)
 {
-    DBG_PRINT("stop dog %d", pt_dog->idx);
+    LOG_AND_WRITE_CONSOLE("stop dog[id=%d; name=%s]"
+        , pt_dog->id
+        , pt_dog->name);
 	del_timer(&(pt_dog->ticktock));
 	return 0;
+}
+
+static int atoi(const char *input)
+{
+    int ret = 0;
+    while (*input!=0) 
+    {
+        if (*input>='0' && *input<='9')
+        {
+            ret = 10 * ret + (*input - '0');
+        }
+
+        input++;
+    }
+
+    return ret;
+}
+
+static void update_dog(t_dog *pt_dog, char *user_data)
+{
+    /* 
+       accept bellow data:
+       <name>x</name>  x is dog's name
+       <timeout>x</timeout> x is timeout value in seconds
+       <stop_on_fd_close>x</stop_on_fd_close> x=1 close; x=0 not close
+       <no_reboot>x</no_reboot>         x=1 no reboot; x=0 reboot
+       <stop_dog>x</stop_dog>           x=1 stop; x=0 do nothing
+    */
+
+    char *p_begin, *p_end, *p_value;
+
+    p_begin = strchr(user_data, '<');
+    if (NULL==p_begin) return;
+    p_begin++;
+    
+    p_value = strchr(p_begin, '>');
+    if (NULL==p_value) return;
+    *p_value = 0;
+    p_value++;
+
+    p_end = strstr(p_value, "</");
+    if (NULL==p_end) return;
+    if (p_value==p_end) return;
+
+    *p_end = 0;
+
+    if (0==strcmp(p_begin, "name"))
+    {
+        strcpy(pt_dog->name, p_value);
+        LOG_AND_WRITE_CONSOLE("set dog[id=%d] name to %s"
+        , pt_dog->id
+        , pt_dog->name);
+
+        return;
+    }
+
+    if (0==strcmp(p_begin, "timeout"))
+    {
+        set_dog_timeout(pt_dog, atoi(p_value));
+        return;
+    }
+
+    if (0==strcmp(p_begin, "stop_on_fd_close"))
+    {
+        pt_dog->stop_on_close = atoi(p_value);
+
+        LOG_AND_WRITE_CONSOLE("set dog[id=%d; name=%s] %s stop_on_close"
+        , pt_dog->id
+        , pt_dog->name
+        , pt_dog->stop_on_close?"": "not ");
+
+        return;
+    }
+
+    if (0==strcmp(p_begin, "no_reboot"))
+    {
+        pt_dog->no_reboot = atoi(p_value);
+        LOG_AND_WRITE_CONSOLE("set dog[id=%d; name=%s] %s on expire"
+        , pt_dog->id
+        , pt_dog->name
+        , pt_dog->no_reboot?"no_reboot": "reboot");
+
+        return;
+    }
+
+    if (0==strcmp(p_begin, "stop_dog"))
+    {
+        if(1==atoi(p_value))
+            stop_dog(pt_dog);
+
+        return;
+    }
+
 }
 
 static ssize_t soft_wdt_write(struct file *file, const char __user *data,
 			      size_t len, loff_t *ppos)
 {
     t_dog *pt_dog = file->private_data;
-	/*
-	 *	Refresh the timer.
-	 */
+    char user_data[USER_DATA_BUF_LEN];
+	 
 	if (len)
     {   
         feed_dog(pt_dog);
+    }
+
+	if (len<sizeof(user_data))
+    {
+        if(copy_from_user(user_data ,data ,len))
+		    return -EFAULT;
+
+        user_data[len]=0;
+        update_dog(pt_dog, user_data);
     }
 
 	return len;
@@ -214,7 +334,7 @@ static long soft_wdt_ioctl(struct file *file, unsigned int cmd,
     	case WDIOC_SETTIMEOUT:
     		if (get_user(timeout_new, p))
     			return -EFAULT;
-    		if (set_dog_timeout(timeout_new))
+    		if (set_dog_timeout(pt_dog, timeout_new))
     			return -EINVAL;
             
     		feed_dog(pt_dog);
@@ -226,22 +346,24 @@ static long soft_wdt_ioctl(struct file *file, unsigned int cmd,
 	}
 }
 
-void add_dog(t_dog *pt_dog)
+static void add_dog(t_dog *pt_dog)
 {
     pt_dog->timeout = timeout;
     pt_dog->ticktock = 
         (struct timer_list)TIMER_INITIALIZER(dog_timeout_proc, 0, (unsigned long)pt_dog);
     pt_dog->stop_on_close = stop_on_close;
     pt_dog->is_orphan = 0;
+    pt_dog->no_reboot = 0;
+    pt_dog->name[0] = 0;
     
     spin_lock(&all_dog_lock);
-    pt_dog->idx = dog_cnt;
+    pt_dog->id = dog_cnt;
     list_add(&(pt_dog->link_all), &all_dogs);
     dog_cnt++;
     spin_unlock(&all_dog_lock);
 }
 
-void del_dog(t_dog *pt_dog)
+static void del_dog(t_dog *pt_dog)
 {
     spin_lock(&all_dog_lock);
     list_del(&(pt_dog->link_all));
@@ -255,13 +377,15 @@ static int soft_wdt_open(struct inode *inode, struct file *file)
 	int ret=0;
     t_dog *pt_dog;
     
-    DBG_PRINT("===");
     pt_dog = kmalloc(sizeof(t_dog), GFP_ATOMIC);
     add_dog(pt_dog);
     feed_dog(pt_dog);
 
     file->private_data = pt_dog;
 	nonseekable_open(inode, file);
+
+    LOG_AND_WRITE_CONSOLE("create new dog[id=%d]."
+        , pt_dog->id);
 
 	return ret;
 }
@@ -270,12 +394,20 @@ static int soft_wdt_release(struct inode *inode, struct file *file)
 {
     t_dog *pt_dog = file->private_data;
 
+    LOG_AND_WRITE_CONSOLE("release dog[id=%d; name=%s]"
+        , pt_dog->id
+        , pt_dog->name);
+
     pt_dog->is_orphan = 1;
 	if (pt_dog->stop_on_close) 
     {
 		stop_dog(pt_dog);
         del_dog(pt_dog);
         kfree(pt_dog);
+
+        LOG_AND_WRITE_CONSOLE("dog[id=%d; name=%s] deleted."
+        , pt_dog->id
+        , pt_dog->name);
 	} 
 
 	return 0;
@@ -297,7 +429,7 @@ static struct miscdevice soft_wdt_miscdev = {
 };
 
 
-int __init init_inner_structure(void)
+static int __init init_inner_structure(void)
 {
     dog_cnt = 0;
     spin_lock_init(&all_dog_lock);
@@ -306,7 +438,7 @@ int __init init_inner_structure(void)
     filp_log_file = filp_open(log_file, O_WRONLY | O_APPEND| O_CREAT, 0640);
     if (IS_ERR(filp_log_file))
     {
-        DBG_PRINT("open log file %s failed", log_file);
+        WRITE_CONSOLE("open log file %s failed", log_file);
         return PTR_ERR(filp_log_file);
     }
 
@@ -316,7 +448,8 @@ int __init init_inner_structure(void)
 static int __init soft_wdt_init(void)
 {
     int retval;
-    
+
+    WRITE_CONSOLE("soft wdt start: timeout=%d", timeout);
     retval=init_inner_structure();
     if (retval < 0)
     {
@@ -326,20 +459,18 @@ static int __init soft_wdt_init(void)
 	retval = misc_register(&soft_wdt_miscdev);
 	if (retval < 0)
     {
-        DBG_PRINT("misc_register failed");
+        LOG_AND_WRITE_CONSOLE("misc_register failed");
 		goto EXIT;
     }
 
-    DBG_PRINT("timeout=%d", timeout);
-    DBG_PRINT("log_file=%s", log_file);
-    write_log("   hahaha");
+    LOG_AND_WRITE_CONSOLE("soft wdt start succeed");
     
 EXIT:
     return retval;
 }
 
 
-void __exit deinit_inner_structure(void)
+static void __exit deinit_inner_structure(void)
 {
     struct list_head *head=&all_dogs, *pos;
     t_dog *pt_dog;
@@ -361,9 +492,9 @@ void __exit deinit_inner_structure(void)
 
 static void __exit soft_wdt_exit(void)
 {
+    LOG_AND_WRITE_CONSOLE("soft wdt quit");
 	misc_deregister(&soft_wdt_miscdev);
     deinit_inner_structure();
-    DBG_PRINT("Goodbye, cruel world");
 }
 
 module_init(soft_wdt_init);
