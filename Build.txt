@@ -1,16 +1,23 @@
-模块编译
 
-(方法一)在Linux内核编译体系中编译
+(一)模块编译
 
-1. 拷贝soft_wdt.c到drivers/watchdog/目录下。
+方法一、单独编译
 
-2. 将下面这行代码，追加到内核源码的drivers/watchdog/Makefile中(在Architecture Independant部分)
-obj-$(CONFIG_SOFT_WDT) += soft_wdt.o
+    在soft_wdt源码目录下，执行如下命令即可
+    make -C /path/to/kernel/source/dir M=`pwd` modules
 
-3. 将下面的内容追加到内核源码的drivers/watchdog/Kconfig中(在Architecture Independant部分)
+方法二、在Linux内核编译体系中编译
+
+    1. 拷贝soft_wdt.c到drivers/watchdog/目录下。
+    
+    2. 将下面这行代码，追加到内核源码的drivers/watchdog/Makefile中(在Architecture Independant部分)
+    obj-$(CONFIG_SOFT_WDT) += soft_wdt.o
+    
+    3. 将下面的内容追加到内核源码的drivers/watchdog/Kconfig中(在Architecture Independant部分)
 
 config SOFT_WDT
 	tristate "soft_wdt-Software watchdog timer"
+	default m
 	help
 	  Software implemented watchdog timer, supporting mutiple dogs, 
 	  and supply some control mechanism.
@@ -18,6 +25,60 @@ config SOFT_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called softdog.
 
-4. 执行make menuconfig进入watchdog驱动程序的选择界面
-    将soft_wdt-Software watchdog timer的编译方式设置为M，保存配置并退出设置。
-    执行make modules，然后在drivers/watchdog/目录下，就会生成模块文件soft_wdt.ko
+    4. 执行make menuconfig进入watchdog驱动程序的选择界面，然后直接退出，并保存配置。
+    
+    5. 执行make modules，然后在drivers/watchdog/目录下，就会生成模块文件soft_wdt.ko
+
+(二)模块加载
+    1. 使用默认参数加载(5秒超时，日志文件为/var/log/soft_wdt.log)
+    insmod soft_wdt.ko
+
+    2. 指定参数加载(5秒超时，日志文件为/var/log/soft_wdt.log)
+    insmod soft_wdt.ko timeout=12 log_file="/path/to/other/log_file"
+
+(三)用户态程序使用看门狗示例代码
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#define    SOFT_WDT_DEV    "/dev/soft_wdt"
+
+int main(int argc, char *argv[])
+{
+    int i;
+    int fd=open("/dev/soft_wdt", O_WRONLY);
+
+    if (fd < 0)
+    {
+        printf("open %s failed\n", SOFT_WDT_DEV);
+        exit(1);
+    }
+
+    printf("open %s succeed\n", SOFT_WDT_DEV);
+
+    /* set dog name. it's heplful for review log file. */
+    write(fd, "<name>my_dog</name>", strlen("<name>my_dog</name>"));
+
+    /* set timeout to 123 seconds */
+    write(fd, "<timeout>123</timeout>", strlen("<timeout>123</timeout>"));
+
+    /* we just make a test. So don not reboot system */
+    write(fd, "<no_reboot>1</no_reboot>", strlen("<no_reboot>1</no_reboot>"));
+    
+    for (i=0; i<100; i++)
+    {
+        write(fd, "1234", 4);
+        usleep(1000000);
+    }
+
+    /* attention: before close fd, you should stop dog. otherwise, it may still effects */
+    write(fd, "<stop_dog>1</stop_dog>", strlen("<stop_dog>1</stop_dog>"));
+    close(fd);
+    
+    return 0;
+}

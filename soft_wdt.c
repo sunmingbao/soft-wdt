@@ -1,5 +1,7 @@
 /*
- * Copyright (C) 2014 Sun Mingbao
+ * soft_wdt.c - Software watchdog timer
+ *
+ * Copyright (C) 2014 Sun Mingbao <sunmingbao@126.com>
  * Dual licensed under the MIT and/or GPL licenses.
  *
  *	Implementation mechanism mainly learned from:
