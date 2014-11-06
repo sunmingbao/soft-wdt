@@ -51,6 +51,9 @@ config SOFT_WDT
 int main(int argc, char *argv[])
 {
     int i;
+    char buf[32];
+    int  value;
+
     int fd=open("/dev/soft_wdt", O_WRONLY);
 
     if (fd < 0)
@@ -69,7 +72,21 @@ int main(int argc, char *argv[])
 
     /* we just make a test. So don not reboot system */
     write(fd, "<no_reboot>1</no_reboot>", strlen("<no_reboot>1</no_reboot>"));
-    
+
+    /* get dog info from kernel */
+    ioctl(fd, GET_NAME, buf);
+    printf("NAME: %s\n", buf);
+
+    ioctl(fd, GET_TIMEOUT, &value);
+    printf("TIMEOUT: %d\n", value);
+
+    ioctl(fd, GET_STOP_ON_FD_CLOSE, &value);
+    printf("STOP_ON_FD_CLOSE: %d\n", value);
+
+    ioctl(fd, GET_NO_REBOOT, &value);
+    printf("NO_REBOOT: %d\n", value);
+
+    /* feed dog */
     for (i=0; i<100; i++)
     {
         write(fd, "1234", 4);

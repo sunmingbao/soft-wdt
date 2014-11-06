@@ -30,7 +30,7 @@
 
 MODULE_AUTHOR("Sun Mingbao <sunmingbao@126.com>");
 MODULE_DESCRIPTION("software watchdog timer");
-MODULE_VERSION("1.0");
+MODULE_VERSION("1.1");
 MODULE_LICENSE("Dual MIT/GPL");
 
 #define    WRITE_CONSOLE(fmt, args...) \
@@ -54,13 +54,19 @@ MODULE_LICENSE("Dual MIT/GPL");
 
 #define DEFAULT_TIMEOUT    (5)    /* Default is 5 seconds */
 static int timeout = DEFAULT_TIMEOUT;	/* in seconds */
-static int stop_on_close;
+static int stop_on_fd_close;
 
 static char *log_file = "/var/log/soft_wdt.log";
 module_param(timeout, int, S_IRUGO);
 module_param(log_file, charp, S_IRUGO);
 
 struct file *filp_log_file;
+
+#define SOFT_WDT_IOC_BASE      0xE0
+#define GET_NAME               _IO(SOFT_WDT_IOC_BASE, 0)
+#define GET_TIMEOUT            _IO(SOFT_WDT_IOC_BASE, 1)
+#define GET_STOP_ON_FD_CLOSE   _IO(SOFT_WDT_IOC_BASE, 2)
+#define GET_NO_REBOOT          _IO(SOFT_WDT_IOC_BASE, 3)
 
 #define MAX_USER_DATA_LEN    (255)
 #define USER_DATA_BUF_LEN    (MAX_USER_DATA_LEN+1)
@@ -71,7 +77,7 @@ typedef struct
     char name[USER_DATA_BUF_LEN];
     int timeout;
 
-    int stop_on_close;
+    int stop_on_fd_close;
     int no_reboot;
     int is_orphan;
     struct timer_list ticktock;
@@ -189,7 +195,7 @@ static void add_dog(t_dog *pt_dog)
     pt_dog->timeout = timeout;
     pt_dog->ticktock = 
         (struct timer_list)TIMER_INITIALIZER(dog_timeout_proc, 0, (unsigned long)pt_dog);
-    pt_dog->stop_on_close = stop_on_close;
+    pt_dog->stop_on_fd_close = stop_on_fd_close;
     pt_dog->is_orphan = 0;
     pt_dog->no_reboot = 0;
     pt_dog->name[0] = 0;
@@ -287,12 +293,12 @@ static void update_dog(t_dog *pt_dog, char *user_data)
 
     if (0==strcmp(p_begin, "stop_on_fd_close"))
     {
-        pt_dog->stop_on_close = atoi(p_value);
+        pt_dog->stop_on_fd_close = atoi(p_value);
 
-        LOG_AND_WRITE_CONSOLE("set dog[id=%d; name=%s] %s stop_on_close"
+        LOG_AND_WRITE_CONSOLE("set dog[id=%d; name=%s] %s stop_on_fd_close"
         , pt_dog->id
         , pt_dog->name
-        , pt_dog->stop_on_close?"": "not ");
+        , pt_dog->stop_on_fd_close?"": "not ");
 
         return;
     }
@@ -366,7 +372,16 @@ static long soft_wdt_ioctl(struct file *file, unsigned int cmd,
     	case WDIOC_GETSTATUS:
     	case WDIOC_GETBOOTSTATUS:
     		return put_user(0, p);
-            
+
+    	case GET_NAME:
+    		return copy_to_user(argp, pt_dog->name, strlen(pt_dog->name)+1) ? -EFAULT : 0;
+
+    	case GET_STOP_ON_FD_CLOSE:
+    		return copy_to_user(argp, &(pt_dog->stop_on_fd_close), sizeof(int)) ? -EFAULT : 0;
+
+    	case GET_NO_REBOOT:
+    		return copy_to_user(argp, &(pt_dog->no_reboot), sizeof(int)) ? -EFAULT : 0;
+
     	case WDIOC_KEEPALIVE:
     		feed_dog(pt_dog);
     		return 0;
@@ -380,6 +395,7 @@ static long soft_wdt_ioctl(struct file *file, unsigned int cmd,
     		feed_dog(pt_dog);
     		/* Fall */
     	case WDIOC_GETTIMEOUT:
+        case GET_TIMEOUT:
     		return put_user(pt_dog->timeout, p);
     	default:
     		return -ENOTTY;
@@ -393,6 +409,8 @@ static int soft_wdt_open(struct inode *inode, struct file *file)
     t_dog *pt_dog;
     
     pt_dog = kmalloc(sizeof(t_dog), GFP_ATOMIC);
+    if (NULL==pt_dog) return -ENOMEM;
+    
     add_dog(pt_dog);
     feed_dog(pt_dog);
 
@@ -414,7 +432,7 @@ static int soft_wdt_release(struct inode *inode, struct file *file)
         , pt_dog->name);
 
     pt_dog->is_orphan = 1;
-	if (pt_dog->stop_on_close) 
+	if (pt_dog->stop_on_fd_close) 
     {
 		stop_dog(pt_dog);
         del_dog(pt_dog);
