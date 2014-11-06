@@ -45,8 +45,15 @@ config SOFT_WDT
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 
 #define    SOFT_WDT_DEV    "/dev/soft_wdt"
+
+#define SOFT_WDT_IOC_BASE      0xE0
+#define GET_NAME               _IO(SOFT_WDT_IOC_BASE, 0)
+#define GET_TIMEOUT            _IO(SOFT_WDT_IOC_BASE, 1)
+#define GET_STOP_ON_FD_CLOSE   _IO(SOFT_WDT_IOC_BASE, 2)
+#define GET_NO_REBOOT          _IO(SOFT_WDT_IOC_BASE, 3)
 
 int main(int argc, char *argv[])
 {
