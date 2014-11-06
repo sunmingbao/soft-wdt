@@ -4,5 +4,6 @@
     版权所有 (C) 2014 孙明保
     Dual licensed under the MIT and/or GPL licenses.
 =========================
-    作者: 孙明保
+    作者: 孙明保(来自 ZTE中兴)
     邮箱: sunmingbao@126.com
+    QQ  : 7743896
