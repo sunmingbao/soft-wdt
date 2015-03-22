@@ -1,47 +1,47 @@
 
-		soft_wdt�������Ź����
+		soft_wdt软件看门狗简介
 		
 ======================
 
-    soft_wdt(���¼�Ʊ�����)��һ������ʵ�ֵ�Linux���Ź���
-    ����/drivers/watchdog/softdog.cʵ�ֵ��������Ź�����һ����
-    ��Ҫ�Ĳ�ͬ���ǣ�ǰ��֧��һ�����Ź�����������֧�ִ����Ŀ��Ź���
+    soft_wdt(以下简称本软件)是一个软件实现的Linux看门狗，
+    他和/drivers/watchdog/softdog.c实现的软件看门狗几乎一样。
+    主要的不同点是，前者支持一个看门狗，本软件则支持大量的看门狗。
 
-    soft_wdt������������һ���ں�ģ��soft_wdt.ko��
+    soft_wdt代码编译后，生成一个内核模块soft_wdt.ko。
 
-    ģ����غ󣬽�����һ���豸�ļ�/dev/soft_wdt
+    模块加载后，将创建一个设备文件/dev/soft_wdt
 
-    �û�̬����ͨ��ϵͳ����openÿ��һ��/dev/soft_wdt���͵õ�һ���µĿ��Ź���
-    �˿��Ź���ʹ�÷����ͺ���ͨ�Ŀ��Ź�һ����
+    用户态程序，通过系统调用open每打开一次/dev/soft_wdt，就得到一个新的看门狗，
+    此看门狗的使用方法就和普通的看门狗一样。
 
-    ����:
-    1) ��fdд���κ����ݣ��͵�����ι����
-    2) �û�����ͨ��ioctl�Կ��Ź����и��ֲ�����
-    3) ���ģ�����ʱ��ģ�����nowayout��ֵΪ0��
-       ��ô���û���fdд��һ�κ����ַ�V(ע�⣬�Ǵ�д)������ʱ��
-       �ͽ��˿��Ź����ó��˿ɹرյġ�
+    例如:
+    1) 向fd写入任何数据，就等于是喂狗。
+    2) 用户可以通过ioctl对看门狗进行各种操作。
+    3) 如果模拟加载时，模块参数nowayout的值为0，
+       那么当用户向fd写入一次含有字符V(注意，是大写)的数据时，
+       就将此看门狗设置成了可关闭的。
 
-    �������ṩ��ģ������У�
-    nowayout           - һ���������Ź���������ֹͣ (0��no��1��yes��default=1)
-    timeout            - ���Ź���ʱʱ�䣬��λ���롣 (0 ~ 65536, default=5)
-    no_reboot          - ���Ź���ʱ��������ϵͳ ��(0��no; 1��yes  default=0)
-    core_dump_ill_task - ���Ź���ʱʱ��core dump�쳣���̣�(0��no; 1��yes  default=0)
+    本软件提供的模块参数有：
+    nowayout           - 一旦启动看门狗，不可以停止 (0，no；1，yes。default=1)
+    timeout            - 看门狗超时时间，单位：秒。 (0 ~ 65536, default=5)
+    no_reboot          - 看门狗超时，不重启系统 。(0，no; 1，yes  default=0)
+    core_dump_ill_task - 看门狗超时时，core dump异常进程，(0，no; 1，yes  default=0)
 
-
-======================
-
-    ��������һ�Դ�����������
-    �����Ȩ˵����COPYING.txt��
-
-    �������ı��뼰ʹ�ü�Build.txt��
 
 ======================
 
-��Ҫ�İ汾��ʷ��
+    本软件是一款开源、免费软件。
+    具体版权说明见COPYING.txt。
 
-2014��11�£�1.0����
-2015��03�£�2.0����
+    本软件的编译及使用见Build.txt。
+
+======================
+
+主要的版本历史：
+
+2014年11月，1.0发布
+2015年03月，2.0发布
 ====================== 
-����: ������(���� ZTE����)
-����: sunmingbao@126.com
+作者: 孙明保(来自 ZTE中兴)
+邮箱: sunmingbao@126.com
 QQ  : 7743896

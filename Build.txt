@@ -1,19 +1,19 @@
 
-(Ò»)Ä£¿é±àÒë
+(ä¸€)æ¨¡å—ç¼–è¯‘
 
-·½·¨Ò»¡¢µ¥¶À±àÒë
+æ–¹æ³•ä¸€ã€å•ç‹¬ç¼–è¯‘
 
-    ÔÚsoft_wdtÔ´ÂëÄ¿Â¼ÏÂ£¬Ö´ĞĞÈçÏÂÃüÁî¼´¿É
+    åœ¨soft_wdtæºç ç›®å½•ä¸‹ï¼Œæ‰§è¡Œå¦‚ä¸‹å‘½ä»¤å³å¯
     make -C /path/to/kernel/source/dir M=`pwd` modules
 
-·½·¨¶ş¡¢ÔÚLinuxÄÚºË±àÒëÌåÏµÖĞ±àÒë
+æ–¹æ³•äºŒã€åœ¨Linuxå†…æ ¸ç¼–è¯‘ä½“ç³»ä¸­ç¼–è¯‘
 
-    1. ¿½±´soft_wdt.cµ½drivers/watchdog/Ä¿Â¼ÏÂ¡£
+    1. æ‹·è´soft_wdt.cåˆ°drivers/watchdog/ç›®å½•ä¸‹ã€‚
     
-    2. ½«ÏÂÃæÕâĞĞ´úÂë£¬×·¼Óµ½ÄÚºËÔ´ÂëµÄdrivers/watchdog/MakefileÖĞ(ÔÚArchitecture Independant²¿·Ö)
+    2. å°†ä¸‹é¢è¿™è¡Œä»£ç ï¼Œè¿½åŠ åˆ°å†…æ ¸æºç çš„drivers/watchdog/Makefileä¸­(åœ¨Architecture Independantéƒ¨åˆ†)
     obj-$(CONFIG_SOFT_WDT) += soft_wdt.o
     
-    3. ½«ÏÂÃæµÄÄÚÈİ×·¼Óµ½ÄÚºËÔ´ÂëµÄdrivers/watchdog/KconfigÖĞ(ÔÚArchitecture Independant²¿·Ö)
+    3. å°†ä¸‹é¢çš„å†…å®¹è¿½åŠ åˆ°å†…æ ¸æºç çš„drivers/watchdog/Kconfigä¸­(åœ¨Architecture Independantéƒ¨åˆ†)
 
 config SOFT_WDT
 	tristate "soft_wdt-software watchdog(support multiple dogs)"
@@ -27,18 +27,18 @@ config SOFT_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called softdog.
 
-    4. Ö´ĞĞmake menuconfig½øÈëwatchdogÇı¶¯³ÌĞòµÄÑ¡Ôñ½çÃæ£¬È»ºóÖ±½ÓÍË³ö£¬²¢±£´æÅäÖÃ¡£
+    4. æ‰§è¡Œmake menuconfigè¿›å…¥watchdogé©±åŠ¨ç¨‹åºçš„é€‰æ‹©ç•Œé¢ï¼Œç„¶åç›´æ¥é€€å‡ºï¼Œå¹¶ä¿å­˜é…ç½®ã€‚
     
-    5. Ö´ĞĞmake modules£¬È»ºóÔÚdrivers/watchdog/Ä¿Â¼ÏÂ£¬¾Í»áÉú³ÉÄ£¿éÎÄ¼şsoft_wdt.ko
+    5. æ‰§è¡Œmake modulesï¼Œç„¶ååœ¨drivers/watchdog/ç›®å½•ä¸‹ï¼Œå°±ä¼šç”Ÿæˆæ¨¡å—æ–‡ä»¶soft_wdt.ko
 
-(¶ş)Ä£¿é¼ÓÔØ
-    1. Ê¹ÓÃÄ¬ÈÏ²ÎÊı¼ÓÔØ(5Ãë³¬Ê±£¬ÈÕÖ¾ÎÄ¼şÎª/var/log/soft_wdt.log)
+(äºŒ)æ¨¡å—åŠ è½½
+    1. ä½¿ç”¨é»˜è®¤å‚æ•°åŠ è½½(5ç§’è¶…æ—¶ï¼Œä¸”çœ‹é—¨ç‹—ä¸å¯å…³é—­)
     insmod soft_wdt.ko
 
-    2. Ö¸¶¨²ÎÊı¼ÓÔØ(5Ãë³¬Ê±£¬ÈÕÖ¾ÎÄ¼şÎª/var/log/soft_wdt.log)
-    insmod soft_wdt.ko timeout=12 log_file="/path/to/other/log_file"
+    2. æŒ‡å®šå‚æ•°åŠ è½½(12ç§’è¶…æ—¶ï¼Œä¸”çœ‹é—¨ç‹—å¯å…³é—­)
+    insmod soft_wdt.ko timeout=12 nowayout=0
 
-(Èı)ÓÃ»§Ì¬³ÌĞòÊ¹ÓÃ¿´ÃÅ¹·Ê¾Àı´úÂë
+(ä¸‰)ç”¨æˆ·æ€ç¨‹åºä½¿ç”¨çœ‹é—¨ç‹—ç¤ºä¾‹ä»£ç 
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,12 +50,6 @@ config SOFT_WDT
 #include <sys/ioctl.h>
 
 #define    SOFT_WDT_DEV    "/dev/soft_wdt"
-
-#define SOFT_WDT_IOC_BASE      0xE0
-#define GET_NAME               _IO(SOFT_WDT_IOC_BASE, 0)
-#define GET_TIMEOUT            _IO(SOFT_WDT_IOC_BASE, 1)
-#define GET_STOP_ON_FD_CLOSE   _IO(SOFT_WDT_IOC_BASE, 2)
-#define GET_NO_REBOOT          _IO(SOFT_WDT_IOC_BASE, 3)
 
 int main(int argc, char *argv[])
 {
@@ -73,27 +67,8 @@ int main(int argc, char *argv[])
 
     printf("open %s succeed\n", SOFT_WDT_DEV);
 
-    /* set dog name. it's heplful for review log file. */
-    write(fd, "<name>my_dog</name>", strlen("<name>my_dog</name>"));
-
-    /* set timeout to 123 seconds */
-    write(fd, "<timeout>123</timeout>", strlen("<timeout>123</timeout>"));
-
-    /* we just make a test. So don not reboot system */
-    write(fd, "<no_reboot>1</no_reboot>", strlen("<no_reboot>1</no_reboot>"));
-
-    /* get dog info from kernel */
-    ioctl(fd, GET_NAME, buf);
-    printf("NAME: %s\n", buf);
-
-    ioctl(fd, GET_TIMEOUT, &value);
-    printf("TIMEOUT: %d\n", value);
-
-    ioctl(fd, GET_STOP_ON_FD_CLOSE, &value);
-    printf("STOP_ON_FD_CLOSE: %d\n", value);
-
-    ioctl(fd, GET_NO_REBOOT, &value);
-    printf("NO_REBOOT: %d\n", value);
+    /* make the dog closable. */
+    write(fd, "V", 1);
 
     /* feed dog */
     for (i=0; i<100; i++)
@@ -102,9 +77,6 @@ int main(int argc, char *argv[])
         usleep(1000000);
     }
 
-    /* attention: before close fd, you should stop dog. otherwise, it may still effects */
-    write(fd, "<stop_dog>1</stop_dog>", strlen("<stop_dog>1</stop_dog>"));
     close(fd);
-    
     return 0;
 }
