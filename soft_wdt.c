@@ -109,7 +109,7 @@ static int feed_dog(t_dog * pt_dog)
 			jiffies + (pt_dog->timeout * HZ));
 	} else {
 		printk(KERN_WARNING PFX "%s non-alive. invalid feed.",
-			pt_dog->ident.identity);
+			DOG_NAME(pt_dog));
 		ret = -EIO;
 	}
 	spin_unlock(&pt_dog->lock);
@@ -120,22 +120,27 @@ static void timeout_proc(unsigned long data)
 {
 	t_dog * pt_dog = (void *) data;
 	
-	if (!DOG_ALIVE(pt_dog))
-		return;
-	
 	spin_lock(&pt_dog->lock);
+	if (!DOG_ALIVE(pt_dog)) {
+		spin_unlock(&pt_dog->lock);
+		return;
+	}
+	
 	DOG_SET_NON_ALIVE(pt_dog);
 	spin_unlock(&pt_dog->lock);
-	printk(KERN_WARNING PFX "%s expired.",
-		pt_dog->ident.identity);
+	printk(KERN_WARNING PFX "%s expired.", DOG_NAME(pt_dog));
 	if (core_dump_ill_task && !(pt_dog->is_orphan)) {
 		printk(KERN_WARNING PFX "%s core dump ill task.",
-			pt_dog->ident.identity);
+			DOG_NAME(pt_dog));
 		send_sig(SIGABRT, pt_dog->owner, 0);
 	}
 	
-	if (!no_reboot)
+	if (!no_reboot) {
+		printk(KERN_WARNING PFX "%s restart the system.",
+			DOG_NAME(pt_dog));
 		emergency_restart();
+	}
+		
 }
 
 static void* find_dog_by_id(int id) 
@@ -220,10 +225,12 @@ static int set_dog_timeout(t_dog * pt_dog, int t)
 
 static void stop_dog(t_dog * pt_dog) 
 {
-	if (!DOG_ALIVE(pt_dog))
-		return;
-	
 	spin_lock(&pt_dog->lock);
+	if (!DOG_ALIVE(pt_dog)) {
+		spin_unlock(&pt_dog->lock);
+		return;
+	}
+	
 	del_timer(&(pt_dog->ticktock));
 	DOG_SET_NON_ALIVE(pt_dog);
 	spin_unlock(&pt_dog->lock);
@@ -276,7 +283,7 @@ static int soft_wdt_open(struct inode *inode, struct file *file)
 	
 	file->private_data = pt_dog;
 	nonseekable_open(inode, file);
-	printk(KERN_NOTICE PFX "%s created.", pt_dog->ident.identity);
+	printk(KERN_NOTICE PFX "%s created.", DOG_NAME(pt_dog));
 	return 0;
 }
 
@@ -284,8 +291,8 @@ static int soft_wdt_release(struct inode *inode, struct file *file)
 {
 	t_dog * pt_dog = file->private_data;
 	if (pt_dog->expect_close == 42 || !DOG_ALIVE(pt_dog)) {
-		printk(KERN_NOTICE PFX "%s released.", DOG_NAME(pt_dog));
 		stop_dog(pt_dog);
+		printk(KERN_NOTICE PFX "%s released.", DOG_NAME(pt_dog));
 		del_dog(pt_dog);
 		kfree(pt_dog);
 
@@ -414,6 +421,7 @@ static void __exit deinit_inner_structure(void)
 		pt_dog = list_entry(pos, t_dog, link_all);
 		pos = pos->prev;
 		stop_dog(pt_dog);
+		printk(KERN_NOTICE PFX "%s released.", DOG_NAME(pt_dog));
 		list_del(&(pt_dog->link_all));
 		kfree(pt_dog);
 	}

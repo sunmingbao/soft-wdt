@@ -32,7 +32,17 @@ config SOFT_WDT
     5. 执行make modules，然后在drivers/watchdog/目录下，就会生成模块文件soft_wdt.ko
 
 (二)模块加载
-    1. 使用默认参数加载(5秒超时，且看门狗不可关闭)
+
+    本软件提供的模块参数如下。用户可根据需要进行指定。
+
+    nowayout           - 一旦启动看门狗，不可以停止 (0，no；1，yes。default=1)
+    timeout            - 看门狗超时时间，单位：秒。 (0 ~ 65536, default=5)
+    no_reboot          - 看门狗超时，不重启系统 。(0，no; 1，yes  default=0)
+    core_dump_ill_task - 看门狗超时时，core dump异常进程，(0，no; 1，yes  default=0)
+
+    下面是加载命令。
+
+    1. 使用默认参数加载(默认值如上面所列)
     insmod soft_wdt.ko
 
     2. 指定参数加载(12秒超时，且看门狗可关闭)
@@ -48,14 +58,15 @@ config SOFT_WDT
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <linux/watchdog.h>
 
 #define    SOFT_WDT_DEV    "/dev/soft_wdt"
 
 int main(int argc, char *argv[])
 {
-    int i;
-    char buf[32];
-    int  value;
+    int 			i;
+    struct watchdog_info	ident;
+    int				timeout;
 
     int fd=open("/dev/soft_wdt", O_WRONLY);
 
@@ -67,7 +78,18 @@ int main(int argc, char *argv[])
 
     printf("open %s succeed\n", SOFT_WDT_DEV);
 
-    /* make the dog closable. */
+    timeout = 7;
+    printf("set timeout to %d\n", timeout);
+    ioctl(fd, WDIOC_SETTIMEOUT, &timeout);
+
+    timeout = 0;
+    ioctl(fd, WDIOC_GETTIMEOUT, &timeout);
+    printf("get timeout returns %d\n", timeout);
+
+    ioctl(fd, WDIOC_GETSUPPORT, &ident);
+    printf("dog name is %s\n", ident.identity);
+
+    printf("make the dog closable\n");
     write(fd, "V", 1);
 
     /* feed dog */
