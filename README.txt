@@ -3,36 +3,30 @@
 		
 ======================
 
-    soft_wdt是一个软件实现的Linux看门狗。
-
-    soft_wdt的主要特点：
-        1. 他可以提供大量的看门狗供用户使用; 
-        2. 每个看门狗的特性可以单独进行设置;
-        3. 所有操作以及重启记录，均可通过日志查看。
+    soft_wdt(以下简称本软件)是一个软件实现的Linux看门狗，
+    他和/drivers/watchdog/softdog.c实现的软件看门狗几乎一样。
+    主要的不同点是，前者支持一个看门狗，本软件则支持大量的看门狗。
 
     soft_wdt代码编译后，生成一个内核模块soft_wdt.ko。
 
-    模块加载后，将创建一个文件/dev/soft_wdt
+    模块加载后，将创建一个设备文件/dev/soft_wdt
 
-    用户态程序，通过系统调用open每打开一次/dev/soft_wdt，就得到一个看门狗，
-该看门狗通过open返回的fd进行操作。
+    用户态程序，通过系统调用open每打开一次/dev/soft_wdt，就得到一个新的看门狗，
+    此看门狗的使用方法就和普通的看门狗一样。
 
-    用户每调用一次write系统调用，向fd写入任何数据，就完成了一次喂狗操作。
+    例如:
+    1) 向fd写入任何数据，就等于是喂狗。
+    2) 用户可以通过ioctl对看门狗进行各种操作。
+    3) 如果模拟加载时，模块参数nowayout的值为0，
+       那么当用户向fd写入一次含有字符V(注意，是大写)的数据时，
+       就将此看门狗设置成了可关闭的。
 
-    如果通过向fd写入如下几种特殊数据，则可实现对看门狗的一些设置。
+    本软件提供的模块参数有：
+    nowayout           - 一旦启动看门狗，不可以停止 (0，no；1，yes。default=1)
+    timeout            - 看门狗超时时间，单位：秒。 (0 ~ 65536, default=5)
+    no_reboot          - 看门狗超时，不重启系统 。(0，no; 1，yes  default=0)
+    core_dump_ill_task - 看门狗超时时，core dump异常进程，(0，no; 1，yes  default=0)
 
-    <name>x</name>  给看门狗取个名字。x为狗的名字，例如 wangcai  :)。
-    <timeout>x</timeout> 设置超时时间，单位为秒。x换成具体数值即可。
-    <stop_on_fd_close>x</stop_on_fd_close> 设置关闭fd时，看门狗是否关闭。x=1 close; x=0 not close
-    <no_reboot>x</no_reboot> 设置看门狗超时后，是否重启系统。x=1 no reboot; x=0 reboot
-    <stop_dog>x</stop_dog>   停止看门狗。 x=1 stop; x=0 do nothing
-
-下面是一些实际的操作示例。
-
-    write(fd, "<name>my_dog</name>", strlen("<name>my_dog</name>"));
-    write(fd, "<timeout>123</timeout>", strlen("<timeout>123</timeout>"));
-    write(fd, "<stop_on_fd_close>1</stop_on_fd_close>", strlen("<stop_on_fd_close>1</stop_on_fd_close>"));
-    write(fd, "<no_reboot>1</no_reboot>", strlen("<no_reboot>1</no_reboot>"));
 
 ======================
 
@@ -46,7 +40,7 @@
 主要的版本历史：
 
 2014年11月，1.0发布
-
+2015年03月，2.0发布
 ====================== 
 作者: 孙明保(来自 ZTE中兴)
 邮箱: sunmingbao@126.com
