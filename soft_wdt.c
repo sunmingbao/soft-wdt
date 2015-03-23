@@ -113,6 +113,7 @@ static u16 generate_dog_id(void)
 static void dog_timeout(unsigned long data)
 {
 	struct dog_struct *dog = (void *)data;
+	char   dog_name[32];
 
 	spin_lock(&dog->lock);
 	if (!DOG_ALIVE(dog)) {
@@ -123,6 +124,13 @@ static void dog_timeout(unsigned long data)
 	DOG_SET_NON_ALIVE(dog);
 	spin_unlock(&dog->lock);
 
+	/*
+	 * for race condition that
+	 * core_dump cause soft_wdt_release releases the dog
+	 *
+	 */
+	strncpy(dog_name, DOG_NAME(dog), sizeof(dog_name));
+
 	printk(KERN_WARNING PFX "%s expired.", DOG_NAME(dog));
 	if (core_dump_ill_task && !(dog->is_orphan)) {
 		printk(KERN_WARNING PFX "%s core dump ill task.",
@@ -132,7 +140,7 @@ static void dog_timeout(unsigned long data)
 
 	if (!no_reboot) {
 		printk(KERN_WARNING PFX "%s restart the system.",
-			DOG_NAME(dog));
+			dog_name);
 		emergency_restart();
 	}
 
