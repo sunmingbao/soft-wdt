@@ -1,5 +1,5 @@
 /*
- * soft_wdt.c - software watchdog timer(support multiple dogs)
+ * software watchdog timer, support multiple dogs
  *
  * Copyright (C) 2014-2015 Sun Mingbao <sunmingbao@126.com>
  * Dual licensed under the MIT and/or GPL licenses.
@@ -22,9 +22,9 @@
 #include <linux/reboot.h>
 #include <linux/jiffies.h>
 #include <linux/spinlock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/sched.h>
-#include <asm/signal.h>
+#include <linux/signal.h>
 
 #define MODULE_NAME	"soft_wdt"
 #define MOD_VERSION	"2.0"
@@ -61,7 +61,7 @@ MODULE_PARM_DESC(core_dump_ill_task,
 
 
 /* dog num */
-#define MAX_DOG_NUM	(65536)
+static int max_dog_cnt = 128;
 static int dog_cnt;
 struct dog_struct {
 	spinlock_t lock;
@@ -99,14 +99,14 @@ static void* find_dog_by_id(int id)
 
 static u16 generate_dog_id(void)
 {
-	static u16 next_id;
+	static u16 next_id = 0;
 	int ret;
 
 	while (find_dog_by_id(next_id)) {
-		next_id++;
+		next_id = (next_id + 1) % max_dog_cnt;
 	}
 	ret = next_id;
-	next_id++;
+	next_id = (next_id + 1) % max_dog_cnt;
 	return ret;
 }
 
@@ -194,7 +194,7 @@ static int add_dog(struct dog_struct *dog)
 {
 	init_dog(dog);
 	spin_lock(&all_dog_lock);
-	if (dog_cnt >= MAX_DOG_NUM) {
+	if (dog_cnt >= max_dog_cnt) {
 		spin_unlock(&all_dog_lock);
 		return -EUSERS;
 	}

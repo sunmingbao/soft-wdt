@@ -16,16 +16,18 @@
     3. 将下面的内容追加到内核源码的drivers/watchdog/Kconfig中(在Architecture Independant部分)
 
 config SOFT_WDT
-	tristate "soft_wdt-software watchdog(support multiple dogs)"
+	tristate "software watchdog timer (multiple dogs)"
 	default m
 	help
-	  A software monitoring watchdog same as SOFT_WATCHDOG, 
-	  but support multiple dogs. Each time, user opens the
-	  device file node, a new dog was created, associated
-	  with the fd returned by the open system call.
+	  A software watchdog driver, supporting multiple dogs.
+	  Each time, user opens the device file(/dev/soft_wdt),
+	  a new dog was created, associated with the fd returned
+	  by the open system call. The usage of each dog is just
+	  the same as ordinary watchdog, including MAGIC CLOSE.
+	  Currently the driver supports a maximum of 128 dogs.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called softdog.
+	  module will be called soft_wdt.
 
     4. 执行make menuconfig进入watchdog驱动程序的选择界面，然后直接退出，并保存配置。
     
