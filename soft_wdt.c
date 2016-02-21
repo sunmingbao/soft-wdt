@@ -27,7 +27,7 @@
 #include <linux/signal.h>
 
 #define MODULE_NAME	"soft_wdt"
-#define MOD_VERSION	"2.0"
+#define MOD_VERSION	"2.0.1"
 #define PFX		MODULE_NAME": "
 
 /* time out in seconds */
@@ -255,7 +255,7 @@ static int soft_wdt_notify_sys(struct notifier_block *this,
 		spin_lock(&all_dog_lock);
 		list_for_each(pos, head) {
 			dog = list_entry(pos, struct dog_struct, link_all);
-			pos = pos->prev;
+			//pos = pos->prev;
 			stop_dog(dog);
 		}
 		spin_unlock(&all_dog_lock);
