@@ -27,7 +27,7 @@
 #include <linux/signal.h>
 
 #define MODULE_NAME	"soft_wdt"
-#define MOD_VERSION	"2.0.1"
+#define MOD_VERSION	"2.0.2"
 #define PFX		MODULE_NAME": "
 
 /* time out in seconds */
@@ -54,10 +54,10 @@ module_param(no_reboot, bool, 0);
 MODULE_PARM_DESC(no_reboot,
 	"don't reboot the system on dog expire. (default=0)");
 
-static bool core_dump_ill_task = 0;
+static bool core_dump_ill_task = 1;
 module_param(core_dump_ill_task, bool, 0);
 MODULE_PARM_DESC(core_dump_ill_task,
-	"core dump the ill task on dog expire. (default=0)");
+	"core dump the ill task on dog expire. (default=1)");
 
 
 /* dog num */
@@ -407,6 +407,7 @@ static char banner[] __initdata =
 static int __init soft_wdt_init(void)
 {
 	int ret;
+    
 	if (!TIMEOUT_VALID(timeout)) {
 		printk(KERN_WARNING PFX
 			"timeout value %d not between [%d, %d]."
@@ -414,7 +415,9 @@ static int __init soft_wdt_init(void)
 			timeout, TIMEOUT_MIN, TIMEOUT_MAX, TIMEOUT_DEFAULT);
 		timeout = TIMEOUT_DEFAULT;
 	}
+    
 	init_inner_structure();
+    
 	ret = register_reboot_notifier(&soft_wdt_notifier);
 	if (ret) {
 		printk(KERN_ERR PFX
@@ -425,6 +428,7 @@ static int __init soft_wdt_init(void)
 	ret = misc_register(&soft_wdt_miscdev);
 	if (ret) {
 		printk(KERN_ERR PFX "cannot register soft_wdt_miscdev");
+		unregister_reboot_notifier(&soft_wdt_notifier);
 		goto OUT;
 	}
 
@@ -456,6 +460,7 @@ static void __exit soft_wdt_exit(void)
 {
 	printk(KERN_INFO PFX "soft wdt quit");
 	misc_deregister(&soft_wdt_miscdev);
+	unregister_reboot_notifier(&soft_wdt_notifier);
 	deinit_inner_structure();
 }
 
