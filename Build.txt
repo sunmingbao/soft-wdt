@@ -30,7 +30,7 @@ config SOFT_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called soft_wdt.
 
-    4. 执行make menuconfig进入watchdog驱动程序的选择界面，然后直接退出，并保存配置。
+    4. 执行make menuconfig进入内核配置界面，不用做任何操作，然后直接退出，并保存配置。
     
     5. 执行make modules，然后在drivers/watchdog/目录下，就会生成模块文件soft_wdt.ko
 
