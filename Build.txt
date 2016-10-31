@@ -1,7 +1,7 @@
 方法一、单独编译
 
     在soft_wdt源码目录下，执行如下命令即可
-    make -C /path/to/kernel/source/dir M=`pwd` modules
+    make -C /lib/modules/`uname -r`/build SUBDIRS=`pwd`   modules
 
 
 
