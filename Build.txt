@@ -1,10 +1,10 @@
 方法一、单独编译
 
     在soft_wdt源码目录下，执行如下命令即可
-    make -C /lib/modules/`uname -r`/build SUBDIRS=`pwd`   modules
+    make -C /lib/modules/`uname -r`/build M=`pwd` modules
 
     若想将看门狗模块安装到当前pc机系统中(安装后可通过modprobe soft_wdt命令加载看门狗)，则执行如下命令。
-    make -C /lib/modules/`uname -r`/build SUBDIRS=`pwd`  INSTALL_MOD_DIR=kernel/drivers/watchdog  modules_install
+    make -C /lib/modules/`uname -r`/build M=`pwd` INSTALL_MOD_DIR=kernel/drivers/watchdog  modules_install
 
 
 方法二、在Linux内核编译体系中编译

@@ -1,9 +1,7 @@
 
-	soft_wdt v2.0.2
+	soft_wdt v2.0.3
 
-发布日期：2016-04-20
+发布日期：2022/03/16
 
 【更新内容】
-     o bug fix   - 增加unregister_reboot_notifier操作。
-     o 代码修改  - 修改部分模块参数的默认值。
-     o 完善说明
+     o support more kernel versions.

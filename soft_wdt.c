@@ -11,6 +11,7 @@
  *	                        All Rights Reserved.
  */
 
+#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -24,10 +25,14 @@
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/sched.h>
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(4,10,0))
 #include <linux/signal.h>
+#else
+#include <linux/sched/signal.h>
+#endif
 
 #define MODULE_NAME	"soft_wdt"
-#define MOD_VERSION	"2.0.2"
+#define MOD_VERSION	"2.0.3"
 #define PFX		MODULE_NAME": "
 
 /* time out in seconds */
@@ -110,9 +115,16 @@ static u16 generate_dog_id(void)
 	return ret;
 }
 
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(4,14,0))
 static void dog_timeout(unsigned long data)
-{
+{	
 	struct dog_struct *dog = (void *)data;
+	
+#else
+static void dog_timeout(struct timer_list *t)
+{
+	struct dog_struct *dog = from_timer(dog, t, ticktock);
+#endif
 	char   dog_name[32];
 
 	spin_lock(&dog->lock);
@@ -155,8 +167,13 @@ static void init_dog(struct dog_struct *dog)
 	dog->timeout = timeout;
 	dog->expect_close = 0;
 	dog->ticktock =
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(4,14,0))
 		(struct timer_list) TIMER_INITIALIZER(dog_timeout,
 			0, (unsigned long)dog);
+#else
+		(struct timer_list) __TIMER_INITIALIZER(dog_timeout,TIMER_IRQSAFE);
+
+#endif
 	dog->ident.options =
 		(WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE);
 	dog->ident.firmware_version = 0;
